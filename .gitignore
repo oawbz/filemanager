@@ -1,2 +1,37 @@
-filemanager/filemanager
-filemanager/filemanager
+# Backend build artifacts
+/filemanager
+/filemanager.exe
+
+# Go test/profile outputs
+*.test
+*.out
+*.prof
+coverage.out
+cover.out
+
+# Local runtime files
+*.log
+tmp/
+temp/
+
+# Local env/override files
+.env
+.env.*
+!.env.example
+config.local.yaml
+config.*.local.yaml
+
+# Flutter local cache (not source)
+frontend/.pub-cache/
+
+# Editor/OS noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Note:
+# `frontend/.dart_tool/`, `frontend/build/`, and `static/` are currently versioned
+# in this repository. If you want to block them too, untrack them first.
