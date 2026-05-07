@@ -16,21 +16,21 @@ type UserConfig struct {
 }
 
 type ServerConfig struct {
-	Host    string `yaml:"host"`
-	Port    int    `yaml:"port"`
-	RootDir string `yaml:"root_dir"`
+	Host            string `yaml:"host"`
+	Port            int    `yaml:"port"`
+	RootDir         string `yaml:"root_dir"`
 	DAVPublicPrefix string `yaml:"dav_public_prefix"`
 }
 
 type AppConfig struct {
-	Server ServerConfig  `yaml:"server"`
-	Users  []UserConfig  `yaml:"users"`
-	Shell  bool          `yaml:"shell"`
-	MCP    MCPConfig     `yaml:"mcp"`
+	Server ServerConfig `yaml:"server"`
+	Users  []UserConfig `yaml:"users"`
+	Shell  bool         `yaml:"shell"`
+	MCP    MCPConfig    `yaml:"mcp"`
 }
 
 type MCPConfig struct {
-	Token   string `yaml:"token"`
+	Token string `yaml:"token"`
 }
 
 var (
@@ -43,7 +43,7 @@ func getConfigPath() string {
 	if configPath != "" {
 		return configPath
 	}
-	
+
 	if exePath, err := os.Executable(); err == nil {
 		return filepath.Join(filepath.Dir(exePath), "config.yaml")
 	}
@@ -59,7 +59,7 @@ func Load() (*AppConfig, error) {
 	defer configMu.Unlock()
 
 	path := getConfigPath()
-	
+
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		cfg := getDefaultConfig()
 		if err := saveDefaultConfigWithComments(path, cfg); err != nil {
@@ -107,11 +107,11 @@ func Save() error {
 	configMu.RLock()
 	cfg := currentConfig
 	configMu.RUnlock()
-	
+
 	if cfg == nil {
 		return fmt.Errorf("配置未加载")
 	}
-	
+
 	return saveConfig(getConfigPath(), cfg)
 }
 
@@ -124,31 +124,21 @@ func saveConfig(path string, cfg *AppConfig) error {
 }
 
 func saveDefaultConfigWithComments(path string, cfg *AppConfig) error {
-	content := fmt.Sprintf(`# FileManager configuration
-# 注意：同级 key 不要重复（例如只能有一个 server: 块）
-
-server:
-  # 监听地址
-  host: %s
-  # 监听端口
-  port: %d
-  # 文件根目录（管理员用户看到该目录）
-  root_dir: %s
-  # WebDAV 对外访问前缀（反向代理子路径时设置，例如 /g/dav）
-  # 留空或删除该项时，默认使用 /dav
-  dav_public_prefix: /dav
+	content := fmt.Sprintf(`server:
+  host: %s # 监听地址
+  port: %d # 监听端口
+  root_dir: %s # 根目录
+  dav_public_prefix: /dav # WebDAV 对外访问前缀（反向代理子路径时设置，例如 /admin/dav） 留空或删除该项时，默认使用 /dav
 
 users:
   # 第一个用户为管理员
   - username: %s
     password: "%s"
 
-# 是否启用终端功能 false/true
-shell: %t
+shell: %t # 是否启用终端功能 false/true
 
 mcp:
-  # MCP 访问令牌（留空表示关闭）
-  token: "%s"
+  token: "%s"  # MCP 访问令牌（留空表示关闭）
 `, cfg.Server.Host, cfg.Server.Port, cfg.Server.RootDir, cfg.Users[0].Username, cfg.Users[0].Password, cfg.Shell, cfg.MCP.Token)
 
 	return os.WriteFile(path, []byte(content), 0644)
@@ -175,7 +165,7 @@ func getDefaultConfig() *AppConfig {
 		},
 		Shell: false,
 		MCP: MCPConfig{
-			Token:   "",
+			Token: "",
 		},
 	}
 }
@@ -183,11 +173,11 @@ func getDefaultConfig() *AppConfig {
 func GetUserByUsername(username string) *UserConfig {
 	configMu.RLock()
 	defer configMu.RUnlock()
-	
+
 	if currentConfig == nil {
 		return nil
 	}
-	
+
 	for i := range currentConfig.Users {
 		if currentConfig.Users[i].Username == username {
 			return &currentConfig.Users[i]
@@ -207,58 +197,58 @@ func CheckPassword(username, password string) bool {
 func GetUserRootDir(username string) string {
 	configMu.RLock()
 	defer configMu.RUnlock()
-	
+
 	if currentConfig == nil {
 		return ""
 	}
-	
+
 	user := GetUserByUsername(username)
 	if user == nil {
 		return ""
 	}
-	
+
 	if user.IsAdmin {
 		return currentConfig.Server.RootDir
 	}
-	
+
 	return filepath.Join(currentConfig.Server.RootDir, username)
 }
 
 func AddUser(username, password string) error {
 	configMu.Lock()
 	defer configMu.Unlock()
-	
+
 	if currentConfig == nil {
 		return fmt.Errorf("配置未加载")
 	}
-	
+
 	for _, u := range currentConfig.Users {
 		if u.Username == username {
 			return fmt.Errorf("用户已存在")
 		}
 	}
-	
+
 	currentConfig.Users = append(currentConfig.Users, UserConfig{
 		Username: username,
 		Password: password,
 	})
-	
+
 	userDir := filepath.Join(currentConfig.Server.RootDir, username)
 	if err := os.MkdirAll(userDir, 0755); err != nil {
 		return fmt.Errorf("创建用户目录失败: %w", err)
 	}
-	
+
 	return saveConfig(getConfigPath(), currentConfig)
 }
 
 func UpdateUser(username, newPassword string) error {
 	configMu.Lock()
 	defer configMu.Unlock()
-	
+
 	if currentConfig == nil {
 		return fmt.Errorf("配置未加载")
 	}
-	
+
 	for i := range currentConfig.Users {
 		if currentConfig.Users[i].Username == username {
 			if newPassword != "" {
@@ -267,18 +257,18 @@ func UpdateUser(username, newPassword string) error {
 			return saveConfig(getConfigPath(), currentConfig)
 		}
 	}
-	
+
 	return fmt.Errorf("用户不存在")
 }
 
 func DeleteUser(username string) error {
 	configMu.Lock()
 	defer configMu.Unlock()
-	
+
 	if currentConfig == nil {
 		return fmt.Errorf("配置未加载")
 	}
-	
+
 	user := GetUserByUsername(username)
 	if user == nil {
 		return fmt.Errorf("用户不存在")
@@ -286,24 +276,24 @@ func DeleteUser(username string) error {
 	if user.IsAdmin {
 		return fmt.Errorf("不能删除管理员")
 	}
-	
+
 	for i := range currentConfig.Users {
 		if currentConfig.Users[i].Username == username {
 			currentConfig.Users = append(currentConfig.Users[:i], currentConfig.Users[i+1:]...)
 			return saveConfig(getConfigPath(), currentConfig)
 		}
 	}
-	
+
 	return fmt.Errorf("用户不存在")
 }
 
 func ListUsers() []UserConfig {
 	configMu.RLock()
 	defer configMu.RUnlock()
-	
+
 	if currentConfig == nil {
 		return nil
 	}
-	
+
 	return currentConfig.Users
 }
