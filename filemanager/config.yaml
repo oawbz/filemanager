@@ -1,0 +1,25 @@
+# FileManager configuration
+# 注意：同级 key 不要重复（例如只能有一个 server: 块）
+
+server:
+  # 监听地址
+  host: 0.0.0.0
+  # 监听端口
+  port: 8080
+  # 文件根目录（管理员用户看到该目录）
+  root_dir: ./
+  # WebDAV 对外访问前缀（反向代理子路径时设置，例如 /g/dav）
+  # 留空或删除该项时，默认使用 /dav
+  dav_public_prefix: /dav
+
+users:
+  # 第一个用户为管理员
+  - username: admin
+    password: "admin123"
+
+# 是否启用终端功能 false/true
+shell: false
+
+mcp:
+  # MCP 访问令牌（留空表示关闭）
+  token: ""

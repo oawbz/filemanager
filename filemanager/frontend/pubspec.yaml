@@ -1,0 +1,33 @@
+name: spanel_frontend
+description: 文件管理器
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.1
+  web_socket_channel: ^3.0.1
+  shared_preferences: ^2.2.3
+  provider: ^6.1.2
+  cupertino_icons: ^1.0.8
+  web: ^1.1.1
+  desktop_drop: ^0.7.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  fonts:
+    - family: SourceHanSansSC
+      fonts:
+        - asset: assets/fonts/SourceHanSansSC-Medium.woff2
+          weight: 500
+    - family: CascadiaMono
+      fonts:
+        - asset: assets/fonts/CascadiaMonoPL.woff2

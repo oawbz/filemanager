@@ -1,0 +1,347 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Terminal</title>
+    <link rel="stylesheet" href="vendor/xterm/css/xterm.min.css" />
+    <style>
+      @font-face {
+        font-family: "TerminalMono";
+        src: url("assets/assets/fonts/CascadiaMonoPL.ttf") format("truetype");
+        font-weight: 400;
+        font-style: normal;
+        font-display: swap;
+      }
+      html, body, #terminal {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        background: #0d0d0d;
+        overflow: hidden;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+      }
+      #terminal {
+        flex: 1 1 auto;
+        min-height: 0;
+      }
+      #mobile-shortcuts {
+        display: none;
+        flex: 0 0 auto;
+        background: #0b0b0b;
+        border-top: 1px solid #242424;
+        padding: 6px;
+        gap: 6px;
+        overflow: hidden;
+      }
+      #mobile-shortcuts .shortcut-row {
+        display: flex;
+        gap: 6px;
+        width: 100%;
+      }
+      #mobile-shortcuts button {
+        flex: 1 1 0;
+        min-width: 0;
+        background: #1a1a1a;
+        color: #f0f0f0;
+        border: 1px solid #333;
+        border-radius: 8px;
+        padding: 6px 10px;
+        font-size: 12px;
+        position: relative;
+        overflow: hidden;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      #mobile-shortcuts button.active {
+        border-color: #4a90ff;
+        color: #8bb6ff;
+      }
+      #mobile-shortcuts button .ripple {
+        position: absolute;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.25);
+        transform: scale(0);
+        animation: ripple-effect 0.4s ease-out;
+        pointer-events: none;
+      }
+      @keyframes ripple-effect {
+        to {
+          transform: scale(2.5);
+          opacity: 0;
+        }
+      }
+      @media (max-width: 900px) {
+        #mobile-shortcuts {
+          display: flex;
+          flex-direction: column;
+        }
+      }
+      .xterm-viewport::-webkit-scrollbar {
+        width: 10px;
+      }
+      .xterm-viewport::-webkit-scrollbar-thumb {
+        background: #333;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="terminal"></div>
+    <div id="mobile-shortcuts">
+      <div class="shortcut-row">
+        <button data-key="ctrl">Ctrl</button>
+        <button data-key="esc">Esc</button>
+        <button data-key="tab">Tab</button>
+        <button data-key="pipe">|</button>
+        <button data-key="slash">/</button>
+        <button data-key="dash">-</button>
+      </div>
+      <div class="shortcut-row">
+        <button data-key="left">←</button>
+        <button data-key="right">→</button>
+        <button data-key="up">↑</button>
+        <button data-key="down">↓</button>
+        <button data-key="ctrl_c">Ctrl+C</button>
+        <button data-key="ctrl_z">Ctrl+Z</button>
+        <button data-key="ctrl_d">Ctrl+D</button>
+      </div>
+    </div>
+    <script src="vendor/xterm/lib/xterm.js"></script>
+    <script src="vendor/xterm-addon-fit/lib/addon-fit.js"></script>
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const wsUrl = params.get("ws") || "";
+        const TerminalCtor =
+          window.Terminal || (window.XTerm && window.XTerm.Terminal);
+        const FitAddonCtor =
+          (window.FitAddon && window.FitAddon.FitAddon) || window.FitAddon;
+
+        if (!TerminalCtor || !FitAddonCtor) {
+          const host = document.getElementById("terminal");
+          host.style.padding = "12px";
+          host.style.color = "#ff6e6e";
+          host.style.fontFamily = "monospace";
+          host.textContent =
+            "xterm.js load failed: Terminal/FitAddon unavailable. " +
+            "Please check local xterm assets.";
+          return;
+        }
+
+        const term = new TerminalCtor({
+          cursorBlink: true,
+          convertEol: false,
+          fontFamily: "TerminalMono, CascadiaMono, Cascadia Mono, Menlo, Monaco, Consolas, monospace",
+          fontSize: 15,
+          lineHeight: 1.0,
+          theme: {
+            background: "#0d0d0d",
+            foreground: "#f0f0f0",
+            cursor: "#a0a0a0",
+            selectionBackground: "#803a3a5c"
+          }
+        });
+        const fitAddon = new FitAddonCtor();
+        term.loadAddon(fitAddon);
+        term.open(document.getElementById("terminal"));
+        fitAddon.fit();
+
+        function sendResize(socket) {
+          const rows = term.rows || 24;
+          const cols = term.cols || 80;
+          const buf = new Uint8Array(5);
+          buf[0] = 0x01;
+          buf[1] = (rows >> 8) & 0xff;
+          buf[2] = rows & 0xff;
+          buf[3] = (cols >> 8) & 0xff;
+          buf[4] = cols & 0xff;
+          if (socket.readyState === WebSocket.OPEN) {
+            socket.send(buf);
+          }
+        }
+
+        if (!wsUrl) {
+          term.writeln("\x1b[31mMissing ws query parameter.\x1b[0m");
+          return;
+        }
+
+        let socket;
+        let ctrlLatched = false;
+        try {
+          socket = new WebSocket(wsUrl);
+        } catch (e) {
+          term.writeln("\x1b[31mWebSocket connect failed: " + String(e) + "\x1b[0m");
+          return;
+        }
+
+        socket.binaryType = "arraybuffer";
+
+        term.onData((data) => {
+          if (socket.readyState === WebSocket.OPEN) {
+            if (ctrlLatched && typeof data === "string" && data.length === 1) {
+              const code = data.charCodeAt(0);
+              if (code >= 64 && code <= 95) {
+                socket.send(String.fromCharCode(code - 64));
+              } else if (code >= 97 && code <= 122) {
+                socket.send(String.fromCharCode(code - 96));
+              } else {
+                socket.send(data);
+              }
+              ctrlLatched = false;
+              const ctrlBtn = document.querySelector('#mobile-shortcuts button[data-key="ctrl"]');
+              if (ctrlBtn) ctrlBtn.classList.remove("active");
+              return;
+            }
+            socket.send(data);
+          }
+        });
+
+        socket.onopen = () => {
+          sendResize(socket);
+        };
+
+        socket.onmessage = (event) => {
+          if (typeof event.data === "string") {
+            term.write(event.data);
+            return;
+          }
+          if (event.data instanceof ArrayBuffer) {
+            const text = new TextDecoder("utf-8", { fatal: false }).decode(
+              new Uint8Array(event.data)
+            );
+            term.write(text);
+          }
+        };
+
+        socket.onerror = () => {
+          term.writeln("\r\n\x1b[31mConnection error.\x1b[0m");
+        };
+
+        socket.onclose = () => {
+          term.writeln("\r\n\x1b[33mConnection closed.\x1b[0m");
+        };
+
+        term.onResize(() => {
+          fitAddon.fit();
+          sendResize(socket);
+        });
+
+        window.addEventListener("resize", () => {
+          fitAddon.fit();
+          sendResize(socket);
+        });
+
+        const shortcuts = document.getElementById("mobile-shortcuts");
+        if (shortcuts) {
+          const keySeqMap = {
+            esc: "\x1b",
+            tab: "\t",
+            pipe: "|",
+            slash: "/",
+            dash: "-",
+            up: "\x1b[A",
+            down: "\x1b[B",
+            left: "\x1b[D",
+            right: "\x1b[C",
+            ctrl_c: "\x03",
+            ctrl_z: "\x1a",
+            ctrl_d: "\x04"
+          };
+
+          const arrowKeys = new Set(["left", "right", "up", "down"]);
+          let holdTimer = null;
+          let holdInterval = null;
+          let isHolding = false;
+          let holdKey = null;
+
+          function createRipple(button, clientX, clientY) {
+            const rect = button.getBoundingClientRect();
+            const size = Math.max(rect.width, rect.height);
+            const x = clientX - rect.left - size / 2;
+            const y = clientY - rect.top - size / 2;
+            const ripple = document.createElement("span");
+            ripple.className = "ripple";
+            ripple.style.width = ripple.style.height = size + "px";
+            ripple.style.left = x + "px";
+            ripple.style.top = y + "px";
+            button.appendChild(ripple);
+            ripple.addEventListener("animationend", () => ripple.remove());
+          }
+
+          function startHold(key) {
+            holdKey = key;
+            isHolding = false;
+            holdTimer = setTimeout(() => {
+              isHolding = true;
+              const seq = keySeqMap[key];
+              if (!seq || socket.readyState !== WebSocket.OPEN) return;
+              holdInterval = setInterval(() => {
+                if (socket.readyState === WebSocket.OPEN) {
+                  socket.send(seq);
+                }
+              }, 80);
+            }, 500);
+          }
+
+          function stopHold() {
+            if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+            if (holdInterval) { clearInterval(holdInterval); holdInterval = null; }
+            if (!isHolding && holdKey) {
+              const seq = keySeqMap[holdKey];
+              if (seq && socket.readyState === WebSocket.OPEN) {
+                socket.send(seq);
+              }
+            }
+            isHolding = false;
+            holdKey = null;
+          }
+
+          shortcuts.addEventListener("click", (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLButtonElement)) return;
+            const key = target.getAttribute("data-key");
+            if (!key || arrowKeys.has(key)) return;
+            createRipple(target, event.clientX, event.clientY);
+            term.focus();
+            if (key === "ctrl") {
+              ctrlLatched = !ctrlLatched;
+              target.classList.toggle("active", ctrlLatched);
+              return;
+            }
+            const seq = keySeqMap[key];
+            if (!seq || socket.readyState !== WebSocket.OPEN) return;
+            socket.send(seq);
+          });
+
+          shortcuts.addEventListener("pointerdown", (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLButtonElement)) return;
+            const key = target.getAttribute("data-key");
+            if (!key || !arrowKeys.has(key)) return;
+            event.preventDefault();
+            target.setPointerCapture(event.pointerId);
+            createRipple(target, event.clientX, event.clientY);
+            term.focus();
+            startHold(key);
+          });
+
+          shortcuts.addEventListener("pointerup", (event) => {
+            const target = event.target;
+            if (target instanceof HTMLButtonElement) {
+              const key = target.getAttribute("data-key");
+              if (key && arrowKeys.has(key)) {
+                stopHold();
+              }
+            }
+          });
+
+          shortcuts.addEventListener("pointercancel", () => stopHold());
+        }
+      })();
+    </script>
+  </body>
+</html>

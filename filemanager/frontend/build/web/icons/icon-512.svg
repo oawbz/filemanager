@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="文件管理器 icon">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#163B66"/>
+      <stop offset="100%" stop-color="#0D1117"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#79C0FF"/>
+      <stop offset="100%" stop-color="#58A6FF"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect x="74" y="96" width="364" height="320" rx="48" fill="#11161D" stroke="#304055" stroke-width="10"/>
+  <path d="M132 179h248" stroke="#304055" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="165" cy="140" r="14" fill="#58A6FF"/>
+  <circle cx="208" cy="140" r="14" fill="#58A6FF" opacity="0.7"/>
+  <circle cx="251" cy="140" r="14" fill="#58A6FF" opacity="0.45"/>
+  <path d="M176 302c22-42 51-64 92-64 43 0 76 24 103 72" fill="none" stroke="url(#accent)" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M176 302c20 41 51 64 95 64 31 0 60-12 84-35" fill="none" stroke="#D2E9FF" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" opacity="0.92"/>
+</svg>
